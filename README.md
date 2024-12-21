@@ -36,6 +36,7 @@ If you want other inputs for your strategy to consider on bidding/calling, talk 
 
 ### Testing my strategy
 There is a real dumb strategy that you can test against. All it does is increase the bid, and if a bid seems less than 40% likely, the bid gets called. If you want to test your strategy against it, update the [Tournament](https://github.com/jtreim/liars_dice/blob/main/tournament.py) class, and add your strategy to it. For example, import your strategy at the top of the file:
+
 `from player.strategy import strategy, bad_strategy`
 
 and at the bottom add:
