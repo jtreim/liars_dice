@@ -73,9 +73,9 @@ class PlayerStats:
 
   def __repr__(self):
     return f"""-------------- {self.games} Games --------------
-| performance -- w: {self.wins}, avg: {self.avg_performance}
-| bids -- Total: {self.bids}, c: {self.bids_called}, s: {self.successful_bids}, acc: {self.bid_accuracy},
-| calls -- Total: {len(self.calls)}, oot: {self.calls_out_of_turn}, s: {self.successful_calls}, avg: {self.avg_call_probability}, acc: {self.call_accuracy},
+| performance -- w: {self.wins}, avg round placement: {self.avg_performance}
+| bids -- Total: {self.bids}, bids called: {self.bids_called}, successful bids: {self.successful_bids}, acc: {self.bid_accuracy},
+| calls -- Total: {len(self.calls)}, calls out of turn: {self.calls_out_of_turn}, sucessful calls: {self.successful_calls}, avg: {self.avg_call_probability}, acc: {self.call_accuracy},
 | dice left -- Total: {self.avg_dice_left}
 -------------------------------------
 """
