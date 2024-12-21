@@ -33,3 +33,33 @@ Params:
 - `my_dice`: The face values that you rolled.
 
 If you want other inputs for your strategy to consider on bidding/calling, talk with me and we'll see what we can do.
+
+### Testing my strategy
+There is a real dumb strategy that you can test against. All it does is increase the bid, and if a bid seems less than 40% likely, the bid gets called. If you want to test your strategy against it, update the [Tournament](https://github.com/jtreim/liars_dice/blob/main/tournament.py) class, and add your strategy to it. For example, import your strategy at the top of the file:
+`from player.strategy import strategy, bad_strategy`
+
+and at the bottom add:
+```
+if __name__ == "__main__":
+  default_strategy = strategy.Strategy()
+
+  # Your strategy here
+  bs = bad_strategy.BadStrategy()
+
+
+  # Create players
+  players = [
+    Player("Alice", default_strategy),
+    Player("Bob", default_strategy),
+    Player("Charlie", default_strategy),
+    Player("Diana", default_strategy),
+    Player("Me", bs) # don't forget to use your strategy
+  ]
+
+  tournament = Tournament(players)
+  # if you want to increase the number of games to run, you can pass that in here.
+  # tournament = Tournament(players, 50)
+
+  tournament.run()
+```
+
