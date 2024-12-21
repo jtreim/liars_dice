@@ -2,8 +2,8 @@ import copy
 from math import comb
 from typing import List
 
-from color_printer import *
-from player import Player
+from utils.color_printer import *
+from player.player import Player
 
 
 class Round:

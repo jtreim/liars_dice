@@ -1,7 +1,7 @@
 import random
 
-from player_stats import PlayerStats
-from strategy import Strategy
+from player.player_stats import PlayerStats
+from player.strategy.strategy import Strategy
 
 
 class Player:

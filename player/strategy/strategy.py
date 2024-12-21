@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from bid import Bid
+from game.bid import Bid
 
 
 class Strategy:

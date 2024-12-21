@@ -2,10 +2,10 @@ import copy
 import random
 from typing import List
 
-from color_printer import *
-from player import Player
-from round import Round
-from strategy import Strategy
+from utils.color_printer import ColorPrinter, Color
+from player.player import Player
+from game.round import Round
+from player.strategy.strategy import Strategy
 
 
 class LiarDiceGame:
