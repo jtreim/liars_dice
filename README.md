@@ -29,7 +29,7 @@ Params:
 - `round_history`: The list of [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py)s that were made, paired with the name of the player that made them.
 - `current_bid`: The last bid that was made. (See the [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py) class for more info).
 - `dice_counts`: The number of dice each player has.
-- `turns_until_my_turn`: How many other players need to play until it is your turn to bid. If you are next after the current bidder, this will always be (1 - the number of players left in the game).
+- `turns_until_my_turn`: How many other players need to play until it is your turn to bid. If you are the current bidder, this will always be (1 - the number of players left in the game).
 - `my_dice`: The face values that you rolled.
 
 If you want other inputs for your strategy to consider on bidding/calling, talk with me and we'll see what we can do.
