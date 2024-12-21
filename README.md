@@ -15,8 +15,8 @@ All you should need to do is extend the base [Strategy](https://github.com/jtrei
 `challenge_bid`: Does the strategy suggest challenging the current bid?
 Return `True` if so, `False` otherwise.
 Params:
-- `round_history`: The list of bids that were made, paired with the name of the player that made them.
-- `current_bid`: The bid to consider calling. (See the [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py) for more info).
+- `round_history`: The list of [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py)s that were made, paired with the name of the player that made them.
+- `current_bid`: The bid to consider calling. (See the [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py) class for more info).
 - `dice_counts`: The number of dice each player has.
 - `probability_of_truth`: The likelihood that the `current_bid` is valid. This is taken using the dice the current player has, and the total number of dice left in the game.
 - `turns_until_my_turn`: How many other players need to play until it is your turn to bid. If you are next after the current bidder, this will always be (1 - the number of players left in the game).
@@ -26,8 +26,8 @@ Params:
 `make_bid`: What bid does the strategy recommend making?
 Return a valid `Bid`.
 Params:
-- `round_history`: The list of bids that were made, paired with the name of the player that made them.
-- `current_bid`: The last bid that was made. (See the [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py) for more info).
+- `round_history`: The list of [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py)s that were made, paired with the name of the player that made them.
+- `current_bid`: The last bid that was made. (See the [Bid](https://github.com/jtreim/liars_dice/blob/main/bid.py) class for more info).
 - `dice_counts`: The number of dice each player has.
 - `turns_until_my_turn`: How many other players need to play until it is your turn to bid. If you are next after the current bidder, this will always be (1 - the number of players left in the game).
 - `my_dice`: The face values that you rolled.
