@@ -64,3 +64,6 @@ if __name__ == "__main__":
   tournament.run()
 ```
 
+then it's just running:
+
+`python tournament.py`
