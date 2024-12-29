@@ -32,7 +32,14 @@ Params:
 - `turns_until_my_turn`: How many other players need to play until it is your turn to bid. If you are the current bidder, this will always be (1 - the number of players left in the game).
 - `my_dice`: The face values that you rolled.
 
-If you want other inputs for your strategy to consider on bidding/calling, talk with me and we'll see what we can do.
+#### If you want to prep for the start of each round...
+
+`prepare_for_new_round`: Setup called before a round starts.
+Params:
+- `dice_counts`: The list of tuples containing the player name and their dice count for the round. This list is organized in the turn order.
+- `my_dice`: The face values that you rolled.
+
+If you want other parameters for your strategy on a method, or want to add a method to call, talk with me and we'll see what we can do.
 
 ### Testing my strategy
 There is a real dumb strategy that you can test against. All it does is increase the bid, and if a bid seems less than 40% likely, the bid gets called. If you want to test your strategy against it, update the [Tournament](https://github.com/jtreim/liars_dice/blob/main/tournament.py) class, and add your strategy to it. For example, import your strategy at the top of the file:
