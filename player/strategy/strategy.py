@@ -4,6 +4,9 @@ from game.bid import Bid
 
 
 class Strategy:
+  def __init__(self, name):
+    self.name = name
+
   """
   Base class for a strategy. 
   Strategies should implement:
@@ -26,6 +29,17 @@ class Strategy:
     # or pass otherwise. Let's do a simple heuristic:
     # If probability < 0.4, call, else pass.
     return probability_of_truth < 0.4
+
+  def prepare_for_new_round(
+    self,
+    dice_counts: List[Tuple[str, int]],
+    my_dice: List[int]
+  ):
+    """
+    Any setup to do at the start of the round to execute the strategy effectively.
+    """
+    # Any other setup desired for new rounds can be done here.
+    return
 
   def make_bid(
     self,

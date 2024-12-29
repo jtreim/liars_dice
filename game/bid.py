@@ -8,6 +8,10 @@ class Bid:
     self.number_of_dice = number_of_dice
     self.face_value = face_value  # 2 through 6 for the face guessed
 
+  @property
+  def is_valid(self):
+    return self.number_of_dice > 0 and self.face_value > 1 and self.face_value < 7
+
   def __repr__(self):
     return f"({self.number_of_dice} x {self.face_value})"
 

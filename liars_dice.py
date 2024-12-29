@@ -6,6 +6,7 @@ from utils.color_printer import ColorPrinter, Color
 from player.player import Player
 from game.round import Round
 from player.strategy.strategy import Strategy
+from player.strategy.jeff.bad_strategy import BadStrategy
 
 
 class LiarDiceGame:
@@ -85,13 +86,13 @@ class LiarDiceGame:
 
 
 if __name__ == "__main__":
-  default_strategy = Strategy()
   # Create players
   players = [
-    Player("Alice", default_strategy),
-    Player("Bob", default_strategy),
-    Player("Charlie", default_strategy),
-    Player("Diana", default_strategy)
+    Player("Alice", Strategy),
+    Player("Bob", Strategy),
+    Player("Charlie", Strategy),
+    Player("Diana", Strategy),
+    Player("Jeff", BadStrategy)
   ]
   game = LiarDiceGame(players, verbose=True)
   game.play_game()

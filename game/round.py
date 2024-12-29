@@ -17,6 +17,10 @@ class Round:
     self.history = []  # list of (player_name, Bid)
     self.current_bid = None
     self.verbose = verbose
+    self.dice_counts = []
+    
+    for p in self.players:
+      self.dice_counts.append((p.name, p.num_dice))
 
   @property
   def active_player(self):
@@ -124,6 +128,8 @@ class Round:
 
   def bid_is_valid(self, bid) -> bool:
     total_dice = sum(p.num_dice for p in self.players)
+    if bid.number_of_dice > total_dice or bid.face_value <= 1 or bid.face_value > 6:
+      return False
     return bid.number_of_dice <= total_dice and bid.is_higher_than(self.current_bid)
 
   def reset(self):
@@ -137,12 +143,12 @@ class Round:
       return None
 
     # Roll dice
-    dice_counts = []
     all_dice = []
     for p in self.players:
       p.roll_dice()
-      dice_counts.append((p.name, len(p.dice)))
       all_dice.extend(p.dice)
+      if hasattr(p.strategy, 'prepare_for_new_round'):
+        p.strategy.prepare_for_new_round(copy.deepcopy(self.dice_counts), copy.deepcopy(p.dice))
       if self.verbose:
         print(f"{p.name}'s {ColorPrinter.BLACK_TEXT}dice:{ColorPrinter.RESET_TEXT} {p.dice}")
     
@@ -155,11 +161,17 @@ class Round:
       bid = self.active_player.strategy.make_bid(
         copy.deepcopy(self.history),
         copy.deepcopy(self.current_bid),
-        copy.deepcopy(dice_counts),
+        copy.deepcopy(self.dice_counts),
         (len(self.players) - 1),
         copy.deepcopy(self.active_player.dice),
       )
       
+      # if this is the first bid of the game, and the player makes an invalid bid, they lose a die and the round is over
+      if self.current_bid is None and not self.bid_is_valid(bid):
+        next_player_index = self.next_player_index(self.active_player_index)
+        next_player = self.players[next_player_index]
+        return next_player, self.active_player
+
       # if the new bid isn't valid, force them to call the last bid
       if not self.bid_is_valid(bid):
         prev_player = self.players[self.prev_player_index(self.active_player_index)]
@@ -180,7 +192,7 @@ class Round:
         if player_to_call.strategy.challenge_bid(
           copy.deepcopy(self.history),
           copy.deepcopy(self.current_bid),
-          copy.deepcopy(dice_counts),
+          copy.deepcopy(self.dice_counts),
           probability,
           self.turns_until_player_turn(player_to_call),
           copy.deepcopy(player_to_call.dice),

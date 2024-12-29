@@ -1,13 +1,14 @@
 import copy
 from typing import List
 
+from player.strategy.jeff import bad_strategy
 from utils.color_printer import *
 from liars_dice import LiarDiceGame
 from player.player import Player
 from player.strategy import strategy
 
 class Tournament:
-  def __init__(self, players: List[Player], num_games=10):
+  def __init__(self, players: List[Player], num_games=10000):
     self.num_games = num_games
     self.player_map = {}
     self.players = players
@@ -28,13 +29,13 @@ class Tournament:
 
 
 if __name__ == "__main__":
-  default_strategy = strategy.Strategy()
   # Create players
   players = [
-    Player("Alice", default_strategy),
-    Player("Bob", default_strategy),
-    Player("Charlie", default_strategy),
-    Player("Diana", default_strategy)
+    Player("Alice", strategy.Strategy),
+    Player("Bob", strategy.Strategy),
+    Player("Charlie", strategy.Strategy),
+    Player("Diana", strategy.Strategy),
+    Player("Jeff", bad_strategy.BadStrategy)
   ]
 
   tournament = Tournament(players)
