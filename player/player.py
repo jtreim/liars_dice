@@ -9,11 +9,11 @@ class Player:
   Represents a player with a strategy.
   The dice are assigned by the game each round.
   """
-  def __init__(self, name: str, strategy: Strategy, num_dice: int = 5):
+  def __init__(self, name: str, strategy, num_dice: int = 5):
     self.name = name
     self.dice = []
     self.num_dice = num_dice
-    self.strategy = strategy
+    self.strategy = strategy(name)
     self.stats = PlayerStats()
 
   def roll_dice(self):

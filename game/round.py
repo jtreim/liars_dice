@@ -8,22 +8,20 @@ from game.bid import Bid
 
 
 class Round:
-    """
-    A single round of Liar's Dice.
-    A round lasts from the first bid until a player is challenged.
-    """
-    def __init__(self, players: List[Player], verbose: bool, turn_callback=None):
-        """
-        :param players: The active players in turn order for this round.
-        :param verbose: Whether to print minimal or no info. 
-        :param turn_callback: A function that takes a string. Use it to log/print every turn detail.
-        """
-        self.players = players
-        self.active_player_index = 0
-        self.history = []  # list of (player_name, Bid)
-        self.current_bid = None
-        self.verbose = verbose
-        self.turn_callback = turn_callback
+  """
+  A single round of Liar's dice.
+  A round lasts from the first bid until a player is challenged.
+  """
+  def __init__(self, players: List[Player], verbose: bool):
+    self.players = players
+    self.active_player_index = 0
+    self.history = []  # list of (player_name, Bid)
+    self.current_bid = None
+    self.verbose = verbose
+    self.dice_counts = []
+    
+    for p in self.players:
+      self.dice_counts.append((p.name, p.num_dice))
 
     @property
     def active_player(self):
@@ -137,10 +135,11 @@ class Round:
 
         return winner, loser
 
-    def bid_is_valid(self, bid: Bid) -> bool:
-        total_dice = sum(p.num_dice for p in self.players)
-        # Must be strictly higher than current_bid and cannot exceed total dice
-        return (bid.number_of_dice <= total_dice) and bid.is_higher_than(self.current_bid)
+  def bid_is_valid(self, bid) -> bool:
+    total_dice = sum(p.num_dice for p in self.players)
+    if bid.number_of_dice > total_dice or bid.face_value <= 1 or bid.face_value > 6:
+      return False
+    return bid.number_of_dice <= total_dice and bid.is_higher_than(self.current_bid)
 
     def reset(self):
         self.current_bid = None
@@ -155,114 +154,66 @@ class Round:
         if self.active_player is None or len(self.players) == 0 or self.active_player_index is None:
             return None, None
 
-        # Roll dice
-        dice_counts = []
-        all_dice = []
-        for p in self.players:
-            p.roll_dice()
-            dice_counts.append((p.name, len(p.dice)))
-            all_dice.extend(p.dice)
-            # Show the dice if verbose
-            if self.verbose and self.turn_callback:
-                self.turn_callback(f"{p.name}'s dice: {p.dice}")
+    # Roll dice
+    all_dice = []
+    for p in self.players:
+      p.roll_dice()
+      all_dice.extend(p.dice)
+      if hasattr(p.strategy, 'prepare_for_new_round'):
+        p.strategy.prepare_for_new_round(copy.deepcopy(self.dice_counts), copy.deepcopy(p.dice))
+      if self.verbose:
+        print(f"{p.name}'s {ColorPrinter.BLACK_TEXT}dice:{ColorPrinter.RESET_TEXT} {p.dice}")
+    
+    if self.verbose:
+      ColorPrinter.cprint(Color.CYAN, "-------------------------")
 
-        if self.verbose and self.turn_callback:
-            self.turn_callback("--------- Round Start ---------\n")
+    loser = None
+    while loser is None:
+      # get the next bid
+      bid = self.active_player.strategy.make_bid(
+        copy.deepcopy(self.history),
+        copy.deepcopy(self.current_bid),
+        copy.deepcopy(self.dice_counts),
+        (len(self.players) - 1),
+        copy.deepcopy(self.active_player.dice),
+      )
+      
+      # if this is the first bid of the game, and the player makes an invalid bid, they lose a die and the round is over
+      if self.current_bid is None and not self.bid_is_valid(bid):
+        next_player_index = self.next_player_index(self.active_player_index)
+        next_player = self.players[next_player_index]
+        return next_player, self.active_player
 
-        loser = None
-        winner = None
+      # if the new bid isn't valid, force them to call the last bid
+      if not self.bid_is_valid(bid):
+        prev_player = self.players[self.prev_player_index(self.active_player_index)]
+        return self.resolve_call(all_dice, prev_player, self.active_player, False, self.compute_probability(self.active_player))
 
-        while loser is None:
-            # --- ACTIVE PLAYER MAKES A BID ---
-            # Before making the bid, let's compute the probability from the active player's perspective
-            active_prob = self.compute_probability(self.active_player)
+      self.history.append((self.active_player.name, bid))
+      self.current_bid = bid
+      self.active_player.stats.bids += 1
+      if self.verbose:
+        print(f"{self.active_player.name} {ColorPrinter.BLACK_TEXT}bids{ColorPrinter.RESET_TEXT} {bid}{ColorPrinter.BLACK_TEXT}.{ColorPrinter.RESET_TEXT}")
 
-            # Print all parameters that will be passed to make_bid
-            if self.verbose and self.turn_callback:
-                self.turn_callback(
-                    f"--- {self.active_player.name}'s TURN to BID ---\n"
-                    f"Round History (copy): {copy.deepcopy(self.history)}\n"
-                    f"Current Bid: {copy.deepcopy(self.current_bid)}\n"
-                    f"Dice Counts: {dice_counts}\n"
-                    f"Probability (active player's perspective): {active_prob:.3f}\n"
-                    f"My Dice: {self.active_player.dice}\n"
-                    f"Turns Until My Next Turn: {(len(self.players) - 1)}\n"
-                )
+      # otherwise, check to see if any players will challenge it
+      player_to_call_index = self.next_player_index(self.active_player_index)
+      for n in range(0, len(self.players) - 1):
+        player_to_call = self.players[player_to_call_index]
+        out_of_turn = n > 0
+        probability = self.compute_probability(player_to_call)
+        if player_to_call.strategy.challenge_bid(
+          copy.deepcopy(self.history),
+          copy.deepcopy(self.current_bid),
+          copy.deepcopy(self.dice_counts),
+          probability,
+          self.turns_until_player_turn(player_to_call),
+          copy.deepcopy(player_to_call.dice),
+          out_of_turn
+        ):
+          return self.resolve_call(all_dice, self.active_player, player_to_call, out_of_turn, probability)
 
-            new_bid = self.active_player.strategy.make_bid(
-                copy.deepcopy(self.history),
-                copy.deepcopy(self.current_bid),
-                copy.deepcopy(dice_counts),
-                (len(self.players) - 1),
-                copy.deepcopy(self.active_player.dice),
-            )
+        player_to_call_index = (player_to_call_index + 1) % len(self.players)
 
-            # If the new bid is invalid, interpret that as calling the last bid
-            if not self.bid_is_valid(new_bid):
-                prev_player = self.players[self.prev_player_index(self.active_player_index)]
-                if self.verbose and self.turn_callback:
-                    self.turn_callback(
-                        f"{self.active_player.name} tried an INVALID bid {new_bid}. "
-                        f"Forcing a call on {prev_player.name}'s bid.\n"
-                    )
-                winner, loser = self.resolve_call(
-                    all_dice, 
-                    prev_player, 
-                    self.active_player, 
-                    out_of_turn_call=False,
-                    probability=active_prob  # Probability from active player's perspective
-                )
-                break
-
-            # Otherwise, a valid bid is placed
-            self.history.append((self.active_player.name, new_bid))
-            self.current_bid = new_bid
-            self.active_player.stats.bids += 1
-
-            if self.verbose and self.turn_callback:
-                self.turn_callback(f"{self.active_player.name} BIDS {new_bid}.\n")
-
-            # --- ASK OTHER PLAYERS IF THEY WANT TO CALL ---
-            player_to_call_index = self.next_player_index(self.active_player_index)
-            for n in range(0, len(self.players) - 1):
-                player_to_call = self.players[player_to_call_index]
-                out_of_turn = (n > 0)  # first check is in-turn for next player, subsequent are out-of-turn
-                probability = self.compute_probability(player_to_call)
-
-                # Print all parameters we are about to pass to the challenger's strategy
-                if self.verbose and self.turn_callback:
-                    self.turn_callback(
-                        f"--- {player_to_call.name}'s CHANCE to CALL ---\n"
-                        f"Round History (copy): {copy.deepcopy(self.history)}\n"
-                        f"Current Bid: {copy.deepcopy(self.current_bid)}\n"
-                        f"Dice Counts: {dice_counts}\n"
-                        f"Probability (their perspective): {probability:.3f}\n"
-                        f"My Dice: {player_to_call.dice}\n"
-                        f"Out-of-turn? {out_of_turn}\n"
-                        f"Turns Until My Turn: {self.turns_until_player_turn(player_to_call)}\n"
-                    )
-
-                do_call = player_to_call.strategy.challenge_bid(
-                    copy.deepcopy(self.history),
-                    copy.deepcopy(self.current_bid),
-                    copy.deepcopy(dice_counts),
-                    probability,
-                    self.turns_until_player_turn(player_to_call),
-                    copy.deepcopy(player_to_call.dice),
-                    out_of_turn
-                )
-
-                if do_call:
-                    winner, loser = self.resolve_call(all_dice, self.active_player, player_to_call, out_of_turn, probability)
-                    break
-
-                player_to_call_index = self.next_player_index(player_to_call_index)
-
-            if loser is not None:
-                break
-
-            # No one called; move active player to next
-            self.active_player_index = self.next_player_index(self.active_player_index)
-
-        # Return (winner, loser) so the game can handle dice removal
-        return winner, loser
+      # no one challenged it, move on to the next round
+      self.current_bid = bid
+      self.active_player_index = self.next_player_index(self.active_player_index)
