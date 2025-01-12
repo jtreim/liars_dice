@@ -86,13 +86,13 @@ class LiarDiceGame:
 
 
 if __name__ == "__main__":
+  default_strategy = Strategy()
   # Create players
   players = [
-    Player("Alice", Strategy),
-    Player("Bob", Strategy),
-    Player("Charlie", Strategy),
-    Player("Diana", Strategy),
-    Player("Jeff", BadStrategy)
+    Player("Alice", default_strategy),
+    Player("Bob", default_strategy),
+    Player("Charlie", default_strategy),
+    Player("Diana", default_strategy)
   ]
   game = LiarDiceGame(players, verbose=True)
   game.play_game()
