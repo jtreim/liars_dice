@@ -8,7 +8,7 @@ from player.player import Player
 from player.strategy import strategy
 
 class Tournament:
-  def __init__(self, players: List[Player], num_games=10000):
+  def __init__(self, players: List[Player], num_games=200):
     self.num_games = num_games
     self.player_map = {}
     self.players = players
