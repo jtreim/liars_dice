@@ -1,10 +1,9 @@
 import copy
 from math import comb
-from typing import List, Tuple
+from typing import List
 
 from utils.color_printer import *
 from player.player import Player
-from game.bid import Bid
 
 
 class Round:
@@ -18,149 +17,132 @@ class Round:
     self.history = []  # list of (player_name, Bid)
     self.current_bid = None
     self.verbose = verbose
-    self.dice_counts = []
+
+  @property
+  def active_player(self):
+    if self.active_player_index is None:
+      return None
+    return self.players[self.active_player_index]
+
+  def next_player_index(self, current_index):
+    idx = current_index + 1
+    idx = idx % len(self.players)
+    return idx
+
+  def prev_player_index(self, current_index):
+    idx = current_index - 1
+    if idx < 0:
+      idx += len(self.players)
+    return idx
+
+  def turns_until_player_turn(self, player: Player):
+    """
+    Calculate how many turns until `player`'s turn comes up again 
+    in a cyclic order of alive players, starting from active player.
+    """
+    if self.active_player is None:
+      return 0
+
+    if self.active_player == player:
+      # If asking about active player, turns until their next turn is 
+      # the number of other players.
+      return len(self.players) - 1
+
+    # Otherwise, find player's position relative to active_player in turn order
+    player_index = self.players.index(player)
+    if player_index > self.active_player_index:
+      return player_index - self.active_player_index - 1
     
-    for p in self.players:
-      self.dice_counts.append((p.name, p.num_dice))
+    return len(self.players) - (self.active_player_index - player_index) - 1
 
-    @property
-    def active_player(self):
-        if self.active_player_index is None:
-            return None
-        return self.players[self.active_player_index]
+  def count_matching_dice(self, dice: List[int], face_value: int) -> int:
+    """
+    Count how many dice match the face_value or are 1 (wild).
+    """
+    return sum(1 for d in dice if d == face_value or d == 1)
 
-    def next_player_index(self, current_index):
-        idx = current_index + 1
-        idx = idx % len(self.players)
-        return idx
+  def compute_probability(self, perspective_player) -> float:
+    """
+    Compute probability that the current bid is true from the perspective of a given player.
+    If perspective_player is None, use the active player of the round.
+    """
+    if self.current_bid is None or perspective_player is None:
+      return 1.0  # If no bid or no perspective player, trivial probability
 
-    def prev_player_index(self, current_index):
-        idx = current_index - 1
-        if idx < 0:
-            idx += len(self.players)
-        return idx
+    face_value = self.current_bid.face_value
+    required = self.current_bid.number_of_dice
 
-    def turns_until_player_turn(self, player: Player):
-        """
-        Calculate how many turns until `player`'s turn comes up again 
-        in a cyclic order of players, starting from the active player.
-        """
-        if self.active_player is None:
-            return 0
+    # Total dice in play
+    total_dice = sum(p.num_dice for p in self.players)
 
-        if self.active_player == player:
-            return len(self.players) - 1
+    # Known count from perspective player's dice
+    known_count = sum(1 for d in perspective_player.dice if d == face_value or d == 1)
 
-        player_index = self.players.index(player)
-        if player_index > self.active_player_index:
-            return player_index - self.active_player_index - 1
-        return len(self.players) - (self.active_player_index - player_index) - 1
+    # Unknown dice
+    unknown_count = total_dice - len(perspective_player.dice)
 
-    def count_matching_dice(self, dice: List[int], face_value: int) -> int:
-        """
-        Count how many dice match the face_value or are 1 (wild).
-        """
-        return sum(1 for d in dice if d == face_value or d == 1)
+    if known_count >= required:
+      return 1.0
 
-    def compute_probability(self, perspective_player) -> float:
-        """
-        Compute probability that the current bid is true from the perspective of a given player.
-        """
-        if self.current_bid is None or perspective_player is None:
-            return 1.0  # If no bid or no perspective player, trivial probability
+    needed = required - known_count
 
-        face_value = self.current_bid.face_value
-        required = self.current_bid.number_of_dice
+    # Probability that a single unknown die matches (face_value or 1): 1/3
+    p_match = 1/3
 
-        # Total dice in play
-        total_dice = sum(p.num_dice for p in self.players)
+    # Compute probability: at least needed out of unknown_count match
+    prob = 0.0
+    for k in range(needed, unknown_count + 1):
+      prob += comb(unknown_count, k) * (p_match**k) * ((1 - p_match)**(unknown_count - k))
 
-        # Known count from perspective player's dice
-        known_count = sum(1 for d in perspective_player.dice if d == face_value or d == 1)
+    return prob
 
-        # Unknown dice
-        unknown_count = total_dice - len(perspective_player.dice)
-
-        if known_count >= required:
-            return 1.0
-
-        needed = required - known_count
-        p_match = 1 / 3  # Probability that a random die is either the face_value or 1
-
-        prob = 0.0
-        for k in range(needed, unknown_count + 1):
-            prob += comb(unknown_count, k) * (p_match ** k) * ((1 - p_match) ** (unknown_count - k))
-        return prob
-
-    def resolve_call(self, all_dice, bidder, challenger, out_of_turn_call, probability) -> Tuple[Player, Player]:
-        """
-        Returns (winner, loser) of the call.
-        """
-        if self.verbose and self.turn_callback:
-            self.turn_callback(
-                f"{challenger.name} calls bluff"
-                f"{' (out-of-turn)' if out_of_turn_call else ''}.\n"
-                f"Probability (challenger perspective): {probability:.3f}\n"
-            )
-
-        bidder.stats.bids_called += 1
-        challenger.stats.calls.append(probability)
-        if out_of_turn_call:
-            challenger.stats.calls_out_of_turn += 1
-
-        matching_dice = self.count_matching_dice(all_dice, self.current_bid.face_value)
-        loser = None
-        winner = None
-
-        if matching_dice >= self.current_bid.number_of_dice:
-            # Bid is true
-            winner = bidder
-            loser = challenger
-            bidder.stats.successful_bids += 1
-            if self.verbose and self.turn_callback:
-                self.turn_callback(
-                    f"Bid is TRUE: {matching_dice} dice match needed {self.current_bid.number_of_dice}.\n"
-                    f"{challenger.name} loses a die.\n"
-                )
-        else:
-            # Bid is false
-            winner = challenger
-            loser = bidder
-            challenger.stats.successful_calls += 1
-            if self.verbose and self.turn_callback:
-                self.turn_callback(
-                    f"Bid is FALSE: {matching_dice} dice match needed {self.current_bid.number_of_dice}.\n"
-                    f"{bidder.name} loses a die.\n"
-                )
-
-        return winner, loser
+  def resolve_call(self, all_dice, bidder, challenger, out_of_turn_call, probability) -> Player:
+    if self.verbose:
+      print(f"{challenger.name} {ColorPrinter.MAGENTA_TEXT}calls{ColorPrinter.RESET_TEXT}.")
+      ColorPrinter.cprint(Color.CYAN, "-------------------------")
+    bidder.stats.bids_called += 1
+    challenger.stats.calls.append(probability)
+    if out_of_turn_call:
+      challenger.stats.calls_out_of_turn += 1
+    matching_dice = self.count_matching_dice(all_dice, self.current_bid.face_value)
+    loser = None
+    winner = None
+    color_code = ""
+    if matching_dice >= self.current_bid.number_of_dice:
+      winner = bidder
+      loser = challenger
+      bidder.stats.successful_bids += 1
+      color_code = ColorPrinter.GREEN_TEXT
+    else:
+      winner = challenger
+      loser = bidder
+      challenger.stats.successful_calls += 1
+      color_code = ColorPrinter.RED_TEXT
+    if self.verbose:
+      print(f"Total matching dice: {color_code}{matching_dice}{ColorPrinter.RESET_TEXT}. {loser.name} loses a die.")
+    return winner, loser
 
   def bid_is_valid(self, bid) -> bool:
     total_dice = sum(p.num_dice for p in self.players)
-    if bid.number_of_dice > total_dice or bid.face_value <= 1 or bid.face_value > 6:
-      return False
     return bid.number_of_dice <= total_dice and bid.is_higher_than(self.current_bid)
 
-    def reset(self):
-        self.current_bid = None
-        self.history = []
+  def reset(self):
+    self.current_bid = None
+    self.history = []
 
-    def play(self):
-        """
-        Executes the round from first bid until a call is resolved.
-        Returns (winner, loser) for the round, so the game can update dice.
-        """
-        self.reset()
-        if self.active_player is None or len(self.players) == 0 or self.active_player_index is None:
-            return None, None
+  def play(self):
+    self.reset()
+    if self.active_player is None or len(self.players) == 0 or self.active_player_index is None:
+      # Shouldn't get here...
+      return None
 
     # Roll dice
+    dice_counts = []
     all_dice = []
     for p in self.players:
       p.roll_dice()
+      dice_counts.append((p.name, len(p.dice)))
       all_dice.extend(p.dice)
-      if hasattr(p.strategy, 'prepare_for_new_round'):
-        p.strategy.prepare_for_new_round(copy.deepcopy(self.dice_counts), copy.deepcopy(p.dice))
       if self.verbose:
         print(f"{p.name}'s {ColorPrinter.BLACK_TEXT}dice:{ColorPrinter.RESET_TEXT} {p.dice}")
     
@@ -173,17 +155,11 @@ class Round:
       bid = self.active_player.strategy.make_bid(
         copy.deepcopy(self.history),
         copy.deepcopy(self.current_bid),
-        copy.deepcopy(self.dice_counts),
+        copy.deepcopy(dice_counts),
         (len(self.players) - 1),
         copy.deepcopy(self.active_player.dice),
       )
       
-      # if this is the first bid of the game, and the player makes an invalid bid, they lose a die and the round is over
-      if self.current_bid is None and not self.bid_is_valid(bid):
-        next_player_index = self.next_player_index(self.active_player_index)
-        next_player = self.players[next_player_index]
-        return next_player, self.active_player
-
       # if the new bid isn't valid, force them to call the last bid
       if not self.bid_is_valid(bid):
         prev_player = self.players[self.prev_player_index(self.active_player_index)]
@@ -204,7 +180,7 @@ class Round:
         if player_to_call.strategy.challenge_bid(
           copy.deepcopy(self.history),
           copy.deepcopy(self.current_bid),
-          copy.deepcopy(self.dice_counts),
+          copy.deepcopy(dice_counts),
           probability,
           self.turns_until_player_turn(player_to_call),
           copy.deepcopy(player_to_call.dice),
